@@ -92,6 +92,7 @@ jobs:
           CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           WORKSPACE_ID: ${{ secrets.WORKSPACE_ID }}
           LAKEHOUSE_ID: ${{ secrets.LAKEHOUSE_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
         run: |
           python scripts/train_and_register.py \
             --resource-group "$RESOURCE_GROUP" \
