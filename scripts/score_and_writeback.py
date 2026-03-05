@@ -74,29 +74,35 @@ def main():
     predictions_df["MAPE"] = np.nan
     predictions_df["Category"] = "Furniture"
 
-    # Write back to Fabric Lakehouse
+    # Write back to Fabric Lakehouse via DataLakeServiceClient
     workspace_id = os.environ["WORKSPACE_ID"]
     lakehouse_id = os.environ["LAKEHOUSE_ID"]
-    storage_scope = "https://storage.azure.com/.default"
 
-    token = credential.get_token(storage_scope)
-    storage_options = {
-        "bearer_token": token.token,
-        "account_name": "onelake",
-        "azure_storage_endpoint_url": "https://onelake.dfs.fabric.microsoft.com",
-        "container_name": workspace_id,
-    }
+    from azure.storage.filedatalake import DataLakeServiceClient
+
+    datalake_client = DataLakeServiceClient(
+        account_url="https://onelake.dfs.fabric.microsoft.com",
+        credential=credential,
+    )
+    fs_client = datalake_client.get_file_system_client(workspace_id)
 
     table_name = "Demand_Forecast_CICD"
-    output_uri = f"az://{workspace_id}/{lakehouse_id}/Tables/{table_name}"
+    table_dir = f"{lakehouse_id}/Tables/{table_name}"
 
-    write_deltalake(
-        output_uri,
-        predictions_df,
-        mode="overwrite",
-        storage_options=storage_options,
-    )
-    print(f"  Predictions written to Lakehouse table: {table_name}")
+    # Write as parquet locally then upload
+    local_parquet = "/tmp/forecast_output.parquet"
+    predictions_df.to_parquet(local_parquet, index=False)
+
+    # Upload the parquet file
+    parquet_path = f"{table_dir}/part-00000.parquet"
+    dir_client = fs_client.get_directory_client(table_dir)
+    dir_client.create_directory()
+    file_client = fs_client.get_file_client(parquet_path)
+    with open(local_parquet, "rb") as f:
+        data = f.read()
+    file_client.upload_data(data, overwrite=True)
+    os.unlink(local_parquet)
+    print(f"  Predictions written to Lakehouse: {table_dir}")
 
 
 if __name__ == "__main__":
