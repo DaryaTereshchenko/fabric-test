@@ -50,8 +50,7 @@ def main():
     request_payload = json.dumps({"forecast_months": args.forecast_months})
     response = ml_client.online_endpoints.invoke(
         endpoint_name=args.endpoint_name,
-        request_file=None,
-        deployment_name=None,
+        request_payload=request_payload,
     )
     # If invoke doesn't support raw payload, use requests directly
     # For Azure ML SDK v2, use the invoke method or REST
