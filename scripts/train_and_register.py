@@ -19,7 +19,6 @@ import statsmodels.api as sm
 from azure.ai.ml import MLClient
 from azure.identity import ClientSecretCredential
 from azure.storage.filedatalake import DataLakeServiceClient
-from deltalake import DeltaTable
 from sklearn.metrics import mean_absolute_percentage_error
 
 
@@ -32,24 +31,24 @@ def get_credential() -> ClientSecretCredential:
 
 
 def load_data_from_lakehouse(credential: ClientSecretCredential) -> pd.DataFrame:
-    """Load the Superstore dataset from the Fabric Lakehouse via OneLake."""
+    """Load the Superstore Excel file from the Fabric Lakehouse via OneLake."""
     workspace_id = os.environ["WORKSPACE_ID"]
     lakehouse_id = os.environ["LAKEHOUSE_ID"]
-    storage_scope = "https://storage.azure.com/.default"
 
-    token = credential.get_token(storage_scope)
-    table_path = f"{lakehouse_id}/Tables/Superstore"
-    storage_options = {
-        "bearer_token": token.token,
-        "account_name": "onelake",
-        "use_fabric_endpoint": "true",
-        "container_name": workspace_id,
-    }
-    dt = DeltaTable(
-        table_uri=f"az://{workspace_id}/{table_path}",
-        storage_options=storage_options,
+    # Connect to OneLake via ADLS Gen2 DFS endpoint
+    service_client = DataLakeServiceClient(
+        account_url="https://onelake.dfs.fabric.microsoft.com",
+        credential=credential,
     )
-    return dt.to_pandas()
+    file_system_client = service_client.get_file_system_client(workspace_id)
+    file_path = f"{lakehouse_id}/Files/salesforecast/raw/Superstore.xlsx"
+    file_client = file_system_client.get_file_client(file_path)
+
+    # Download and read Excel file
+    download = file_client.download_file()
+    data = download.readall()
+    df = pd.read_excel(io.BytesIO(data), engine="openpyxl")
+    return df
 
 
 def preprocess(df: pd.DataFrame) -> pd.Series:
