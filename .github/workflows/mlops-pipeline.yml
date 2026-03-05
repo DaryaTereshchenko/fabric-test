@@ -60,6 +60,7 @@ jobs:
         id: deploy
         uses: azure/arm-deploy@v2
         with:
+          scope: resourcegroup
           resourceGroupName: ${{ env.RESOURCE_GROUP }}
           template: infra/main.bicep
           parameters: infra/main.bicepparam mlWorkspaceName=${{ env.ML_WORKSPACE }}
@@ -118,22 +119,37 @@ jobs:
         run: |
           az extension add -n ml -y
 
-      - name: Deploy model to endpoint
+      - name: Deploy model to endpoint (blue-green)
+        env:
+          NEW_DEPLOYMENT: sarimax-run-${{ github.run_number }}
         run: |
-          # Remove existing deployment so create is idempotent
-          az ml online-deployment delete \
+          # Get current deployment(s) before creating the new one
+          OLD_DEPLOYMENTS=$(az ml online-deployment list \
             --resource-group "$RESOURCE_GROUP" \
             --workspace-name "$ML_WORKSPACE" \
             --endpoint-name "$ENDPOINT_NAME" \
-            --name "$DEPLOYMENT_NAME" \
-            --yes 2>/dev/null || true
+            --query "[].name" -o tsv 2>/dev/null || true)
 
-          # Create the deployment
+          # Create a versioned deployment (alongside the old one)
           az ml online-deployment create \
             --resource-group "$RESOURCE_GROUP" \
             --workspace-name "$ML_WORKSPACE" \
             --file deploy/deployment.yml \
+            --set name="$NEW_DEPLOYMENT" \
             --all-traffic
+
+          # Remove old deployments
+          for dep in $OLD_DEPLOYMENTS; do
+            if [ "$dep" != "$NEW_DEPLOYMENT" ]; then
+              echo "Removing old deployment: $dep"
+              az ml online-deployment delete \
+                --resource-group "$RESOURCE_GROUP" \
+                --workspace-name "$ML_WORKSPACE" \
+                --endpoint-name "$ENDPOINT_NAME" \
+                --name "$dep" \
+                --yes 2>/dev/null || true
+            fi
+          done
 
       - name: Smoke test endpoint
         run: |
@@ -171,6 +187,7 @@ jobs:
           CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           WORKSPACE_ID: ${{ secrets.WORKSPACE_ID }}
           LAKEHOUSE_ID: ${{ secrets.LAKEHOUSE_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
         run: |
           python scripts/score_and_writeback.py \
             --resource-group "$RESOURCE_GROUP" \
