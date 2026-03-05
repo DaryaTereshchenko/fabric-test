@@ -6,6 +6,7 @@ dependencies:
   - python=3.11
   - pip
   - pip:
+      - azureml-inference-server-http
       - mlflow==2.16.*
       - statsmodels>=0.14
       - pandas>=2.0
