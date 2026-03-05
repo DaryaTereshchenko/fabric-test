@@ -11,6 +11,7 @@ Usage:
 import argparse
 import json
 import os
+import tempfile
 
 import numpy as np
 import pandas as pd
@@ -48,10 +49,14 @@ def main():
     # Invoke the endpoint
     print(f"Invoking endpoint '{args.endpoint_name}'...")
     request_payload = json.dumps({"forecast_months": args.forecast_months})
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+        f.write(request_payload)
+        request_file = f.name
     response = ml_client.online_endpoints.invoke(
         endpoint_name=args.endpoint_name,
-        request_payload=request_payload,
+        request_file=request_file,
     )
+    os.unlink(request_file)
     # If invoke doesn't support raw payload, use requests directly
     # For Azure ML SDK v2, use the invoke method or REST
     result = json.loads(response)
