@@ -77,6 +77,7 @@ def main():
     storage_options = {
         "bearer_token": token.token,
         "use_fabric_endpoint": "true",
+        "account_name": "onelake",
     }
 
     table_name = "Demand_Forecast_CICD"

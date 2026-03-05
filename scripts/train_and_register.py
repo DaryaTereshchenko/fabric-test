@@ -41,6 +41,7 @@ def load_data_from_lakehouse(credential: ClientSecretCredential) -> pd.DataFrame
     storage_options = {
         "bearer_token": token.token,
         "use_fabric_endpoint": "true",
+        "account_name": "onelake",
     }
     delta_table_path = f"{lakehouse_id}/Tables/Superstore"
     dt = DeltaTable(
