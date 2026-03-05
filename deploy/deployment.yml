@@ -1,0 +1,12 @@
+$schema: https://azuremlschemas.azureedge.net/latest/managedOnlineDeployment.schema.json
+name: sarimax-v1
+endpoint_name: superstore-forecast-endpoint
+model: azureml:superstore-sarimax@latest
+code_configuration:
+  code: .
+  scoring_script: score.py
+environment:
+  conda_file: conda.yml
+  image: mcr.microsoft.com/azureml/openmpi4.1.0-ubuntu22.04:latest
+instance_type: Standard_DS2_v2
+instance_count: 1

@@ -1,0 +1,17 @@
+name: forecast-env
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pip
+  - pip:
+      - mlflow==2.16.*
+      - statsmodels>=0.14
+      - pandas>=2.0
+      - numpy>=1.24
+      - scikit-learn>=1.3
+      - azure-identity>=1.15
+      - azure-storage-file-datalake>=12.14
+      - deltalake>=0.18
+      - inferencing-http-client

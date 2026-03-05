@@ -1,0 +1,167 @@
+# CI/CD Pipeline for Superstore Forecast MLOps
+# Uses an EXISTING Azure ML workspace. Deploys only the online endpoint via Bicep.
+# Trains, deploys the model, and writes predictions back to Fabric Lakehouse.
+#
+# Required GitHub Secrets:
+#   AZURE_CREDENTIALS        - Service principal JSON for Azure login
+#az ad sp create-for-rbac --name "myApp" --role contributor \
+#  --scopes /subscriptions/{subscription-id}/resourceGroups/{resource-group} \
+#  --json-auth
+#   TENANT_ID                - Entra ID tenant
+#   CLIENT_ID                - Entra app client ID
+#   CLIENT_SECRET            - Entra app client secret
+#   WORKSPACE_ID             - Fabric workspace ID
+#   LAKEHOUSE_ID             - Fabric lakehouse ID
+#   AZURE_RESOURCE_GROUP     - Azure resource group containing your existing ML workspace
+#   AZURE_ML_WORKSPACE_NAME  - Name of your existing Azure ML workspace
+
+name: MLOps – Train, Deploy & Write-back to Fabric
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "AIsample - Superstore Forecast.ipynb"
+      - "deploy/**"
+      - "infra/**"
+      - ".github/workflows/**"
+  workflow_dispatch:
+
+env:
+  RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+  ML_WORKSPACE: ${{ secrets.AZURE_ML_WORKSPACE_NAME }}
+  ENDPOINT_NAME: superstore-forecast-endpoint
+  DEPLOYMENT_NAME: sarimax-v1
+  MODEL_NAME: superstore-sarimax
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  # ─── Stage 1: Deploy Endpoint (into existing ML workspace) ──────────
+  infra:
+    name: Deploy Online Endpoint
+    runs-on: ubuntu-latest
+    outputs:
+      endpoint_name: ${{ steps.deploy.outputs.endpointName }}
+      scoring_uri: ${{ steps.deploy.outputs.scoringUri }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy endpoint via Bicep (workspace already exists)
+        id: deploy
+        uses: azure/arm-deploy@v2
+        with:
+          resourceGroupName: ${{ env.RESOURCE_GROUP }}
+          template: infra/main.bicep
+          parameters: infra/main.bicepparam mlWorkspaceName=${{ env.ML_WORKSPACE }}
+          failOnStdErr: false
+
+  # ─── Stage 2: Train Model ───────────────────────────────────────────
+  train:
+    name: Train & Register Model
+    needs: infra
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements-ci.txt
+
+      - name: Train model and register in Azure ML
+        env:
+          TENANT_ID: ${{ secrets.TENANT_ID }}
+          CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          WORKSPACE_ID: ${{ secrets.WORKSPACE_ID }}
+          LAKEHOUSE_ID: ${{ secrets.LAKEHOUSE_ID }}
+        run: |
+          python scripts/train_and_register.py \
+            --resource-group "$RESOURCE_GROUP" \
+            --ml-workspace "$ML_WORKSPACE" \
+            --model-name "$MODEL_NAME"
+
+  # ─── Stage 3: Deploy to Managed Online Endpoint ─────────────────────
+  deploy:
+    name: Deploy Model to Endpoint
+    needs: [infra, train]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Install Azure ML CLI extension
+        run: |
+          az extension add -n ml -y
+
+      - name: Deploy model to endpoint
+        run: |
+          # Create/update the deployment
+          az ml online-deployment create \
+            --resource-group "$RESOURCE_GROUP" \
+            --workspace-name "$ML_WORKSPACE" \
+            --file deploy/deployment.yml \
+            --all-traffic
+
+      - name: Smoke test endpoint
+        run: |
+          az ml online-endpoint invoke \
+            --resource-group "$RESOURCE_GROUP" \
+            --workspace-name "$ML_WORKSPACE" \
+            --name "$ENDPOINT_NAME" \
+            --request-file deploy/sample-request.json
+
+  # ─── Stage 4: Write Predictions back to Fabric Lakehouse ────────────
+  writeback:
+    name: Score & Write-back to Fabric
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: pip install -r requirements-ci.txt
+
+      - name: Score and write back to Lakehouse
+        env:
+          TENANT_ID: ${{ secrets.TENANT_ID }}
+          CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          WORKSPACE_ID: ${{ secrets.WORKSPACE_ID }}
+          LAKEHOUSE_ID: ${{ secrets.LAKEHOUSE_ID }}
+        run: |
+          python scripts/score_and_writeback.py \
+            --resource-group "$RESOURCE_GROUP" \
+            --ml-workspace "$ML_WORKSPACE" \
+            --endpoint-name "$ENDPOINT_NAME"
