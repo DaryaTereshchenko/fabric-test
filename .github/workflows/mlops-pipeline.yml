@@ -120,7 +120,15 @@ jobs:
 
       - name: Deploy model to endpoint
         run: |
-          # Create/update the deployment
+          # Remove existing deployment so create is idempotent
+          az ml online-deployment delete \
+            --resource-group "$RESOURCE_GROUP" \
+            --workspace-name "$ML_WORKSPACE" \
+            --endpoint-name "$ENDPOINT_NAME" \
+            --name "$DEPLOYMENT_NAME" \
+            --yes 2>/dev/null || true
+
+          # Create the deployment
           az ml online-deployment create \
             --resource-group "$RESOURCE_GROUP" \
             --workspace-name "$ML_WORKSPACE" \
