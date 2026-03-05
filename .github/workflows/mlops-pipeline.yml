@@ -24,6 +24,8 @@ on:
       - "AIsample - Superstore Forecast.ipynb"
       - "deploy/**"
       - "infra/**"
+      - "scripts/**"
+      - "requirements-ci.txt"
       - ".github/workflows/**"
   workflow_dispatch:
 
