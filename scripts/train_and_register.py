@@ -2,6 +2,7 @@
 CI/CD script: Train the SARIMAX model on data from the Fabric Lakehouse
 and register it in Azure ML.
 
+
 Usage:
   python scripts/train_and_register.py \
     --resource-group myRG \
