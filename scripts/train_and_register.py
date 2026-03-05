@@ -41,11 +41,10 @@ def load_data_from_lakehouse(credential: ClientSecretCredential) -> pd.DataFrame
     storage_options = {
         "bearer_token": token.token,
         "use_fabric_endpoint": "true",
-        "account_name": "onelake",
     }
-    delta_table_path = f"{lakehouse_id}/Tables/Superstore"
+    table_uri = f"abfss://{workspace_id}@onelake.dfs.fabric.microsoft.com/{lakehouse_id}/Tables/Superstore"
     dt = DeltaTable(
-        table_uri=f"az://{workspace_id}/{delta_table_path}",
+        table_uri=table_uri,
         storage_options=storage_options,
     )
     return dt.to_pandas()
