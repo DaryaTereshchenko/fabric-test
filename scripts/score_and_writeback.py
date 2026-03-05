@@ -76,11 +76,13 @@ def main():
     token = credential.get_token(storage_scope)
     storage_options = {
         "bearer_token": token.token,
+        "account_name": "onelake",
         "use_fabric_endpoint": "true",
+        "container_name": workspace_id,
     }
 
     table_name = "Demand_Forecast_CICD"
-    output_uri = f"abfss://{workspace_id}@onelake.dfs.fabric.microsoft.com/{lakehouse_id}/Tables/{table_name}"
+    output_uri = f"az://{workspace_id}/{lakehouse_id}/Tables/{table_name}"
 
     write_deltalake(
         output_uri,
