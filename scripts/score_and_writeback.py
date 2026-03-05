@@ -77,7 +77,7 @@ def main():
     storage_options = {
         "bearer_token": token.token,
         "account_name": "onelake",
-        "use_fabric_endpoint": "true",
+        "azure_storage_endpoint_url": "https://onelake.dfs.fabric.microsoft.com",
         "container_name": workspace_id,
     }
 
