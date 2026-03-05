@@ -57,9 +57,11 @@ def main():
         request_file=request_file,
     )
     os.unlink(request_file)
-    # If invoke doesn't support raw payload, use requests directly
-    # For Azure ML SDK v2, use the invoke method or REST
+    # The endpoint returns a JSON string; invoke() returns it as-is.
+    # It may need one or two json.loads() calls depending on encoding.
     result = json.loads(response)
+    if isinstance(result, str):
+        result = json.loads(result)
     print(f"  Status: {result['status']}")
 
     if result["status"] != "success":
