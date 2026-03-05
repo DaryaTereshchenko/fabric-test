@@ -17,6 +17,11 @@ def init():
     """Called once when the endpoint container starts. Loads the MLflow model."""
     global model
     model_path = os.getenv("AZUREML_MODEL_DIR")
+    # Walk the model dir to find the MLmodel file (may be nested)
+    for root, dirs, files in os.walk(model_path):
+        if "MLmodel" in files:
+            model_path = root
+            break
     model = mlflow.statsmodels.load_model(model_path)
     logger.info("Model loaded from %s", model_path)
 
