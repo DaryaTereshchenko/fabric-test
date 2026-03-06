@@ -1,5 +1,5 @@
 """
-CI/CD script: Train the SARIMAX model on data from the Fabric Lakehouse
+Train the SARIMAX model on data from the Fabric Lakehouse
 and register it in Azure ML.
 
 Usage:
