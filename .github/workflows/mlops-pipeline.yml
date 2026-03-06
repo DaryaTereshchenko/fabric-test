@@ -3,13 +3,10 @@
 # Trains, deploys the model, and writes predictions back to Fabric Lakehouse.
 #
 # Required GitHub Secrets:
-#   AZURE_CREDENTIALS        - Service principal JSON for Azure login
-#az ad sp create-for-rbac --name "myApp" --role contributor \
-#  --scopes /subscriptions/{subscription-id}/resourceGroups/{resource-group} \
-#  --json-auth
-#   TENANT_ID                - Entra ID tenant
 #   CLIENT_ID                - Entra app client ID
 #   CLIENT_SECRET            - Entra app client secret
+#   TENANT_ID                - Entra ID tenant
+#   AZURE_SUBSCRIPTION_ID    - Azure subscription ID
 #   WORKSPACE_ID             - Fabric workspace ID
 #   LAKEHOUSE_ID             - Fabric lakehouse ID
 #   AZURE_RESOURCE_GROUP     - Azure resource group containing your existing ML workspace
@@ -37,7 +34,6 @@ env:
   MODEL_NAME: superstore-sarimax
 
 permissions:
-  id-token: write
   contents: read
 
 jobs:
@@ -54,10 +50,7 @@ jobs:
       - name: Azure Login
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.CLIENT_ID }}
-          client-secret: ${{ secrets.CLIENT_SECRET }}
-          tenant-id: ${{ secrets.TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          creds: '{"clientId":"${{ secrets.CLIENT_ID }}","clientSecret":"${{ secrets.CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.TENANT_ID }}"}'
 
       - name: Deploy endpoint via Bicep (workspace already exists)
         id: deploy
@@ -80,10 +73,7 @@ jobs:
       - name: Azure Login
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.CLIENT_ID }}
-          client-secret: ${{ secrets.CLIENT_SECRET }}
-          tenant-id: ${{ secrets.TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          creds: '{"clientId":"${{ secrets.CLIENT_ID }}","clientSecret":"${{ secrets.CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.TENANT_ID }}"}'
 
       - name: Set up Python 3.10
         uses: actions/setup-python@v5
@@ -119,10 +109,7 @@ jobs:
       - name: Azure Login
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.CLIENT_ID }}
-          client-secret: ${{ secrets.CLIENT_SECRET }}
-          tenant-id: ${{ secrets.TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          creds: '{"clientId":"${{ secrets.CLIENT_ID }}","clientSecret":"${{ secrets.CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.TENANT_ID }}"}'
 
       - name: Install Azure ML CLI extension
         run: |
@@ -179,10 +166,7 @@ jobs:
       - name: Azure Login
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.CLIENT_ID }}
-          client-secret: ${{ secrets.CLIENT_SECRET }}
-          tenant-id: ${{ secrets.TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          creds: '{"clientId":"${{ secrets.CLIENT_ID }}","clientSecret":"${{ secrets.CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.TENANT_ID }}"}'
 
       - name: Set up Python 3.10
         uses: actions/setup-python@v5
