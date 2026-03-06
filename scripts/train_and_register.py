@@ -147,8 +147,29 @@ def main():
                 type=AssetTypes.MLFLOW_MODEL,
             )
         )
-        print(f"  Model registered: {model.name}, version: {model.version}")
+        print(f"  Model registered in AML: {model.name}, version: {model.version}")
         print(f"  MAPE: {mape:.4f}")
+
+        # Also register the model in Fabric's MLflow registry
+        workspace_id = os.environ.get("WORKSPACE_ID", "")
+        if workspace_id:
+            fabric_tracking_uri = f"https://api.fabric.microsoft.com/v1/workspaces/{workspace_id}/mlflow"
+            # Set env vars so MLflow uses Azure AD token auth for Fabric
+            os.environ["MLFLOW_TRACKING_URI"] = fabric_tracking_uri
+            os.environ["MLFLOW_TRACKING_TOKEN"] = credential.get_token(
+                "https://api.fabric.microsoft.com/.default"
+            ).token
+            mlflow.set_tracking_uri(fabric_tracking_uri)
+            mlflow.set_experiment("superstore-forecast-cicd")
+            with mlflow.start_run(run_name="cicd-train"):
+                mlflow.log_metric("mape", mape)
+                mlflow.log_params({"order": "(0,1,1)", "seasonal_order": "(0,1,1,12)"})
+                mlflow.statsmodels.log_model(
+                    results,
+                    artifact_path="model",
+                    registered_model_name=args.model_name,
+                )
+            print(f"  Model registered in Fabric MLflow: {args.model_name}")
 
 
 if __name__ == "__main__":
